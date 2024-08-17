@@ -1,60 +1,33 @@
-const { Client, GatewayIntentBits, REST, Routes, Events } = require('discord.js');
-const axios = require('axios');
+const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { config } = require('dotenv');
+const fs = require('fs');
+const path = require('path');
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+config();
 
-const TOKEN = '';
-const API_URL = '';
-
-client.once(Events.ClientReady, async () => {
-    console.log(`Logged in as ${client.user.tag}`);
-
-    const rest = new REST({ version: '10' }).setToken(TOKEN);
-
-    try {
-        console.log('Started refreshing application (/) commands.');
-        await rest.put(Routes.applicationCommands(client.user.id), {
-            body: [
-                {
-                    name: 'claim',
-                    description: 'Claim a role based on your bio',
-                },
-            ],
-        });
-        console.log('Successfully reloaded application (/) commands.');
-    } catch (error) {
-        console.error('Error registering commands:', error);
-    }
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
 
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isCommand()) return;
+client.commands = new Collection();
+const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js'));
+for (const file of commandFiles) {
+    const command = require(path.join(__dirname, 'commands', file));
+    client.commands.set(command.data.name, command);
+}
 
-    const { commandName } = interaction;
-
-    if (commandName === 'claim') {
-        const userId = interaction.user.id;
-        try {
-            const response = await axios.get(`${API_URL}${userId}`);
-            const bio = response.data.user.bio;
-
-            if (bio.includes('n0step.xyz')) {
-                const role = interaction.guild.roles.cache.get('the_role_id');
-                if (!role) {
-                    await interaction.reply({ content: 'Role not found', ephemeral: true });
-                    return;
-                }
-
-                await interaction.member.roles.add(role);
-                await interaction.reply({ content: 'You have been given the role!', ephemeral: true });
-            } else {
-                await interaction.reply({ content: 'Your bio does not contain the required text.', ephemeral: true });
-            }
-        } catch (error) {
-            console.error('Error fetching user data:', error);
-            await interaction.reply({ content: 'An error occurred while fetching your data.', ephemeral: true });
-        }
+const eventFiles = fs.readdirSync(path.join(__dirname, 'events')).filter(file => file.endsWith('.js'));
+for (const file of eventFiles) {
+    const event = require(path.join(__dirname, 'events', file));
+    if (event.once) {
+        client.once(event.name, (...args) => event.execute(...args, client));
+    } else {
+        client.on(event.name, (...args) => event.execute(...args, client));
     }
-});
+}
 
-client.login(TOKEN);
+client.login(process.env.DISCORD_TOKEN);
