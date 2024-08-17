@@ -51,9 +51,4 @@ async function registerCommands() {
     }
 }
 
-client.once('ready', async () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-    await registerCommands();
-});
-
 client.login(process.env.DISCORD_TOKEN);
