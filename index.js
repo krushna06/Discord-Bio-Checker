@@ -1,8 +1,7 @@
-const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { config } = require('dotenv');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 
 config();
 
@@ -10,7 +9,7 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.MessageContent
     ]
 });
 
@@ -28,26 +27,6 @@ for (const file of eventFiles) {
         client.once(event.name, (...args) => event.execute(...args, client));
     } else {
         client.on(event.name, (...args) => event.execute(...args, client));
-    }
-}
-
-async function registerCommands() {
-    const clientId = process.env.CLIENT_ID;
-    const guildId = process.env.GUILD_ID;
-    
-    const commands = [];
-    commandFiles.forEach(file => {
-        const command = require(path.join(__dirname, 'commands', file));
-        commands.push(command.data.toJSON());
-    });
-
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-
-    try {
-        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-        console.log('Successfully registered application commands.');
-    } catch (error) {
-        console.error('Error registering application commands:', error);
     }
 }
 
